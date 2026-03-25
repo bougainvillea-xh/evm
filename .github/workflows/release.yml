@@ -1,0 +1,99 @@
+name: Release
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - release
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  publish-tauri:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+            args: '--target aarch64-apple-darwin'
+            rust_targets: aarch64-apple-darwin,x86_64-apple-darwin
+          - platform: macos-latest
+            args: '--target x86_64-apple-darwin'
+            rust_targets: aarch64-apple-darwin,x86_64-apple-darwin
+          - platform: ubuntu-22.04
+            args: ''
+            rust_targets: x86_64-unknown-linux-gnu
+          - platform: ubuntu-22.04-arm
+            args: ''
+            rust_targets: aarch64-unknown-linux-gnu
+          - platform: windows-latest
+            args: ''
+            rust_targets: x86_64-pc-windows-msvc
+          - platform: windows-11-arm
+            args: ''
+            rust_targets: aarch64-pc-windows-msvc
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 'lts/*'
+          cache: npm
+
+      - name: Linux dependencies
+        if: matrix.platform == 'ubuntu-22.04' || matrix.platform == 'ubuntu-22.04-arm'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            xdg-utils
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_targets }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - run: npm ci
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tauriScript: npm run tauri
+          tagName: v__VERSION__
+          releaseName: evm v__VERSION__
+          releaseBody: |
+            | 文件名片段 | 说明 |
+            | --- | --- |
+            | `darwin-aarch64.app.tar.gz` | Mac ARM64（Apple 芯片）应用压缩包 |
+            | `darwin-aarch64.dmg` | Mac ARM64（Apple 芯片）安装镜像 |
+            | `darwin-x64.app.tar.gz` | Mac x64（Intel）应用压缩包 |
+            | `darwin-x64.dmg` | Mac x64（Intel）安装镜像 |
+            | `linux-aarch64.AppImage` | Linux ARM64 通用可执行包 |
+            | `linux-aarch64.rpm` | Linux ARM64，Fedora 等 |
+            | `linux-amd64.AppImage` | Linux x64 通用可执行包 |
+            | `linux-amd64.deb` | Linux x64（amd64），Debian/Ubuntu 等 |
+            | `linux-arm64.deb` | Linux ARM64，Debian/Ubuntu 等 |
+            | `linux-x86_64.rpm` | Linux x64，Fedora/RHEL 等 |
+            | `windows-arm64-setup.exe` | Windows ARM64 图形安装程序 |
+            | `windows-arm64.msi` | Windows ARM64 MSI 安装包 |
+            | `windows-x64-setup.exe` | Windows x64 图形安装程序 |
+            | `windows-x64.msi` | Windows x64 MSI 安装包 |
+            | Source code | 源码，不是安装包 |
+
+          releaseDraft: false
+          prerelease: false
+          generateReleaseNotes: true
+          assetNamePattern: '[name]-[version]-[platform]-[arch][setup][ext]'
+          args: ${{ matrix.args }}
