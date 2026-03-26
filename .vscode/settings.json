@@ -1,3 +1,11 @@
 {
-  "cSpell.words": ["tauri", "cdylib", "rlib", "serde", "staticlib"]
+  "cSpell.words": [
+    "tauri",
+    "cdylib",
+    "rlib",
+    "serde",
+    "staticlib",
+    "oxfmt",
+    "oxlint"
+  ]
 }

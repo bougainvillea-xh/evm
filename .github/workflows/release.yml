@@ -66,6 +66,11 @@ jobs:
 
       - run: npm ci
 
+      - name: Oxlint + Oxfmt
+        run: |
+          npm run lint:check
+          npm run format:check
+
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
